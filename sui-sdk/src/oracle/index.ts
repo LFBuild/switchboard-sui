@@ -1,13 +1,12 @@
 import type {
   CommonOptions,
   MoveObjectFields,
+  MoveValue,
   SwitchboardClient,
 } from '../index.js';
 import { getFieldsFromObject, ObjectParsingHelper } from '../index.js';
 
-import type { MoveValue } from '@mysten/sui/client';
 import type { SuiGraphQLClient } from '@mysten/sui/graphql';
-import { graphql } from '@mysten/sui/graphql/schemas/2024.4';
 import type { Transaction } from '@mysten/sui/transactions';
 import { fromHex, toBase58, toHex } from '@mysten/sui/utils';
 
@@ -94,15 +93,12 @@ export class Oracle {
    * Get the oracle data object
    */
   public async loadData(): Promise<OracleData> {
-    const oracleData = await this.client.client
+    const oracleData = await this.client.client.core
       .getObject({
-        id: this.address,
-        options: {
-          showContent: true,
-          showType: true,
-        },
+        objectId: this.address,
+        include: { json: true },
       })
-      .then(getFieldsFromObject);
+      .then(r => getFieldsFromObject(r.object));
 
     return Oracle.parseOracleData(oracleData);
   }
@@ -111,7 +107,7 @@ export class Oracle {
     graphqlClient: SuiGraphQLClient,
     switchboardAddress: string
   ): Promise<OracleData[]> {
-    const fetchAggregatorsQuery = graphql(`
+    const fetchOraclesQuery = `
       query {
         objects(
           filter: {
@@ -129,12 +125,15 @@ export class Oracle {
           }
         }
       }
-    `);
-    const result = await graphqlClient.query({
-      query: fetchAggregatorsQuery,
+    `;
+    const result = await graphqlClient.query<{
+      objects: { nodes: OracleGraphQLNode[] };
+    }>({
+      query: fetchOraclesQuery,
+      variables: {},
     });
 
-    const oracleData: OracleData[] = result.data?.objects?.nodes?.map(
+    const oracleData: OracleData[] = (result.data?.objects?.nodes ?? []).map(
       result => {
         const moveObject = result.asMoveObject.contents
           .json as MoveObjectFields;
@@ -172,15 +171,17 @@ export class Oracle {
     client: SwitchboardClient,
     oracles: string[]
   ): Promise<OracleData[]> {
-    const oracleData = await client.client
-      .multiGetObjects({
-        ids: oracles,
-        options: {
-          showContent: true,
-          showType: true,
-        },
+    const oracleData = await client.client.core
+      .getObjects({
+        objectIds: oracles,
+        include: { json: true },
       })
-      .then(o => o.map(getFieldsFromObject));
+      .then(r =>
+        r.objects.map(o => {
+          if (o instanceof Error) throw o;
+          return getFieldsFromObject(o);
+        })
+      );
 
     return oracleData.map(o => this.parseOracleData(o));
   }

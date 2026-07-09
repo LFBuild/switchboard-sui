@@ -1,0 +1,9 @@
+{
+  "name": "switchboard-sui-monorepo",
+  "private": true,
+  "packageManager": "yarn@4.6.0",
+  "workspaces": [
+    "sui-sdk",
+    "examples/example_2025"
+  ]
+}
