@@ -4,8 +4,8 @@
   "description": "Example demonstrating Switchboard Oracle Quote Verifier on Sui",
   "type": "module",
   "scripts": {
-    "start": "bun run scripts/ts/run.ts",
-    "dev": "bun run scripts/ts/run.ts",
+    "start": "tsx scripts/ts/run.ts",
+    "dev": "tsx scripts/ts/run.ts",
     "build:move": "sui move build",
     "test:move": "sui move test",
     "deploy": "sui client publish --gas-budget 100000000"
@@ -20,13 +20,12 @@
   "author": "Switchboard",
   "license": "MIT",
   "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4",
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@mysten/sui": "^1",
-    "@switchboard-xyz/sui-sdk": "0.1.9"
+    "@mysten/sui": "2.20.2",
+    "@switchboard-xyz/sui-sdk": "workspace:*"
   }
 }

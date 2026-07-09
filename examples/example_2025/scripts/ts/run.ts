@@ -12,7 +12,7 @@
  * - Environment variables configured (see .env.example)
  */
 
-import { SuiClient } from "@mysten/sui/client";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromBase64 as fromB64 } from "@mysten/sui/utils";
@@ -29,7 +29,14 @@ import { SwitchboardClient, Quote } from "@switchboard-xyz/sui-sdk";
 const config = {
   // RPC URL (default: Sui testnet)
   rpcUrl: process.env.SUI_RPC_URL || "https://fullnode.testnet.sui.io:443",
-  
+
+  // Network (mainnet | testnet | devnet | localnet)
+  network: (process.env.SUI_NETWORK || "testnet") as
+    | "mainnet"
+    | "testnet"
+    | "devnet"
+    | "localnet",
+
   // Keystore configuration
   keystoreIndex: parseInt(process.env.KEYSTORE_INDEX || "0"),
   
@@ -86,7 +93,10 @@ async function main() {
   console.log(`  Oracles: ${config.numOracles}\n`);
 
   // Initialize Sui client
-  const client = new SuiClient({ url: config.rpcUrl });
+  const client = new SuiGrpcClient({
+    baseUrl: config.rpcUrl,
+    network: config.network,
+  });
 
   // Initialize Switchboard client and fetch state
   console.log("📡 Connecting to Switchboard...");
@@ -126,17 +136,21 @@ async function main() {
   const createRes = await client.signAndExecuteTransaction({
     signer: keypair,
     transaction: createTx,
-    options: {
-      showEffects: true,
-      showObjectChanges: true,
-      showEvents: true,
+    include: {
+      effects: true,
+      objectTypes: true,
     },
   });
+  const createTxn = createRes.Transaction ?? createRes.FailedTransaction;
 
   // Extract the QuoteConsumer ID from the response
   let quoteConsumerId: string | null = null;
-  for (const change of createRes.objectChanges ?? []) {
-    if (change.type === "created" && change.objectType?.includes("::example_2025::QuoteConsumer")) {
+  for (const change of createTxn.effects?.changedObjects ?? []) {
+    const objectType = createTxn.objectTypes?.[change.objectId];
+    if (
+      change.idOperation === "Created" &&
+      objectType?.includes("::example_2025::QuoteConsumer")
+    ) {
       quoteConsumerId = change.objectId;
       console.log(`✅ QuoteConsumer Created: ${quoteConsumerId}\n`);
       break;
@@ -198,12 +212,12 @@ async function main() {
   const updateRes = await client.signAndExecuteTransaction({
     signer: keypair,
     transaction: updateTx,
-    options: {
-      showEffects: true,
-      showObjectChanges: true,
-      showEvents: true,
+    include: {
+      effects: true,
+      events: true,
     },
   });
+  const updateTxn = updateRes.Transaction ?? updateRes.FailedTransaction;
 
   // ============================================================================
   // Display Results
@@ -211,28 +225,28 @@ async function main() {
 
   console.log("📊 Results:\n");
 
-  if (updateRes.effects?.status.status === "success") {
+  if (updateTxn.effects?.status.success) {
     console.log("✅ Price Update Successful!");
   } else {
     console.log("❌ Price Update Failed");
-    console.log("Status:", updateRes.effects?.status);
+    console.log("Status:", updateTxn.effects?.status);
   }
 
   // Display emitted events
-  if (updateRes.events && updateRes.events.length > 0) {
+  if (updateTxn.events && updateTxn.events.length > 0) {
     console.log("\n📢 Events Emitted:\n");
-    
-    for (const event of updateRes.events) {
-      if (event.type.includes("PriceUpdated")) {
-        const data = event.parsedJson as any;
+
+    for (const event of updateTxn.events) {
+      if (event.eventType.includes("PriceUpdated")) {
+        const data = event.json as any;
         console.log("🎯 PriceUpdated Event:");
         console.log(`   Feed Hash: ${Buffer.from(data.feed_hash).toString('hex')}`);
         console.log(`   Old Price: ${data.old_price || 'N/A'}`);
         console.log(`   New Price: ${data.new_price}`);
         console.log(`   Timestamp: ${new Date(parseInt(data.timestamp)).toISOString()}`);
         console.log(`   Oracles Confirmed: ${data.num_oracles}`);
-      } else if (event.type.includes("QuoteValidationFailed")) {
-        const data = event.parsedJson as any;
+      } else if (event.eventType.includes("QuoteValidationFailed")) {
+        const data = event.json as any;
         console.log("⚠️  QuoteValidationFailed Event:");
         console.log(`   Feed Hash: ${Buffer.from(data.feed_hash).toString('hex')}`);
         console.log(`   Reason: ${Buffer.from(data.reason).toString()}`);

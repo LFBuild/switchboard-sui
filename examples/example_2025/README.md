@@ -16,7 +16,7 @@ A smart contract that:
 ## Prerequisites
 
 - Sui CLI installed
-- Bun or Node.js
+- Node.js
 - Testnet SUI tokens
 
 ## 30-Second Setup
@@ -25,8 +25,8 @@ A smart contract that:
 # 1. Clone and navigate
 cd sui/examples/example_2025
 
-# 2. Install dependencies
-bun install
+# 2. Install dependencies (yarn workspace — installs the whole monorepo)
+yarn install
 
 # 3. Build
 sui move build
@@ -35,7 +35,7 @@ sui move build
 sui client publish --gas-budget 100000000
 
 # 5. Run example (replace with your package ID)
-EXAMPLE_PACKAGE_ID=0xYOUR_PACKAGE_ID bun start
+EXAMPLE_PACKAGE_ID=0xYOUR_PACKAGE_ID yarn start
 ```
 
 ## Expected Output
