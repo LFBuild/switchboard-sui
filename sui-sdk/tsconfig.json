@@ -8,8 +8,8 @@
     }
   },
   "compilerOptions": {
-    "module": "es2022",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "target": "es2019",
     "outDir": "./dist",
     "rootDir": "./src",

@@ -5,16 +5,45 @@ import { Quote } from './quote/index.js';
 import { State } from './state/index.js';
 
 import TTLCache from '@isaacs/ttlcache';
-import type {
-  MoveStruct,
-  MoveValue,
-  SuiObjectResponse,
-} from '@mysten/sui/client';
-import type { SuiClient } from '@mysten/sui/client';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { fromBase64 } from '@mysten/sui/utils';
 import { BN } from '@switchboard-xyz/common';
 
 export { Oracle, Queue, Quote, State };
+
+// ==============================================================================
+// Move value / struct shapes.
+//
+// In @mysten/sui v2 the JSON-RPC client was removed from `@mysten/sui/client`,
+// and with it the `MoveValue` / `MoveStruct` / `SuiObjectResponse` types. We now
+// read objects through the transport-agnostic Core API (`ClientWithCoreApi`)
+// using the `json` representation. These type aliases reproduce the v1 shapes
+// verbatim so the parsing helpers below keep the exact same typing as before.
+// ==============================================================================
+
+export interface MoveVariant {
+  fields: { [key: string]: MoveValue };
+  type: string;
+  variant: string;
+}
+
+export type MoveStruct =
+  | MoveValue[]
+  | { fields: { [key: string]: MoveValue }; type: string }
+  | { [key: string]: MoveValue };
+
+export type MoveValue =
+  | number
+  | boolean
+  | string
+  | MoveValue[]
+  | { id: string }
+  | MoveStruct
+  | null
+  | MoveVariant;
+
+/** A single object as returned by the Core API with `include: { json: true }`. */
+export type SuiObject = SuiClientTypes.Object<{ json: true }>;
 
 export * from './aggregator/index.js';
 export * from './oracle/index.js';
@@ -58,7 +87,7 @@ export interface CommonOptions {
 export class SwitchboardClient {
   state: Promise<SwitchboardState | undefined>;
 
-  constructor(readonly client: SuiClient) {
+  constructor(readonly client: ClientWithCoreApi) {
     this.state = getSwitchboardState(client);
   }
 
@@ -99,12 +128,11 @@ export class SwitchboardClient {
 
 // Helper function to get the Switchboard state
 export async function getSwitchboardState(
-  client: SuiClient,
+  client: ClientWithCoreApi,
   options?: CommonOptions
 ): Promise<SwitchboardState | undefined> {
   try {
-    const chainId = options?.chainId ?? (await client.getChainIdentifier());
-    const mainnet = chainId !== '4c78adac'; // Check if mainnet or testnet
+    const mainnet = client.core.network === 'mainnet';
     const data = await State.fetch(
       client,
       mainnet
@@ -123,18 +151,11 @@ export async function getSwitchboardState(
   }
 }
 
-export function getFieldsFromObject(
-  response: SuiObjectResponse
-): MoveObjectFields {
-  // Check if 'data' and 'content' exist and are of the expected type
-  if (
-    response.data?.content &&
-    response.data.content.dataType === 'moveObject' &&
-    !Array.isArray(response.data.content.fields) &&
-    !('type' in response.data.content.fields)
-  ) {
-    // Safely return 'fields' from 'content'
-    return response.data.content.fields;
+export function getFieldsFromObject(object: SuiObject): MoveObjectFields {
+  // Check that the Core API returned the object's Move fields as JSON
+  if (object?.json && typeof object.json === 'object') {
+    // Safely return the Move struct 'fields' from the json representation
+    return object.json as MoveObjectFields;
   }
 
   throw new Error('Invalid response data');
@@ -181,7 +202,10 @@ export class ObjectParsingHelper {
   }
 
   public static asId(value: MoveValue): string {
-    if (typeof value === 'object' && 'id' in value) {
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'object' && value !== null && 'id' in value) {
       const idWrapper = value as { id: string };
       return idWrapper.id;
     }

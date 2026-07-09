@@ -5,7 +5,7 @@ import {
   ObjectParsingHelper,
 } from '../index.js';
 
-import type { SuiClient } from '@mysten/sui/client';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 
 export interface StateData {
   id: string;
@@ -24,15 +24,12 @@ export class State {
    * Get the state data object
    */
   public async loadData(): Promise<StateData> {
-    const receivedData = await this.client.client
+    const receivedData = await this.client.client.core
       .getObject({
-        id: this.address,
-        options: {
-          showContent: true,
-          showType: true,
-        },
+        objectId: this.address,
+        include: { json: true },
       })
-      .then(getFieldsFromObject);
+      .then(r => getFieldsFromObject(r.object));
 
     // return the data in camelCase
     return State.parseStateData(receivedData);
@@ -51,18 +48,15 @@ export class State {
   }
 
   public static async fetch(
-    client: SuiClient,
+    client: ClientWithCoreApi,
     address: string
   ): Promise<StateData> {
-    const receivedData = await client
+    const receivedData = await client.core
       .getObject({
-        id: address,
-        options: {
-          showContent: true,
-          showType: true,
-        },
+        objectId: address,
+        include: { json: true },
       })
-      .then(getFieldsFromObject);
+      .then(r => getFieldsFromObject(r.object));
     return State.parseStateData(receivedData);
   }
 }

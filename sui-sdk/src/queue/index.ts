@@ -1,8 +1,13 @@
-import type { CommonOptions, OracleData, SwitchboardClient } from '../index.js';
+import type {
+  CommonOptions,
+  MoveValue,
+  OracleData,
+  SwitchboardClient,
+} from '../index.js';
 import { getFieldsFromObject, ObjectParsingHelper } from '../index.js';
 import { Oracle } from '../oracle/index.js';
 
-import type { DynamicFieldInfo, MoveValue } from '@mysten/sui/client';
+import type { SuiClientTypes } from '@mysten/sui/client';
 import type { Transaction } from '@mysten/sui/transactions';
 import { fromHex, SUI_CLOCK_OBJECT_ID, toBase58 } from '@mysten/sui/utils';
 
@@ -197,63 +202,73 @@ export class Queue {
    * Get the queue data object
    */
   public async loadData(): Promise<QueueData> {
-    const rpcResponseData = await this.client.client
+    const rpcResponseData = await this.client.client.core
       .getObject({
-        id: this.address,
-        options: {
-          showContent: true,
-          showType: true,
-        },
+        objectId: this.address,
+        include: { json: true },
       })
-      .then(getFieldsFromObject);
+      .then(r => getFieldsFromObject(r.object));
 
     // Fetch the existing oracles
     const existingOraclesResponse = rpcResponseData.existing_oracles;
-    const existingOraclesObjects: DynamicFieldInfo[] = [];
+    const existingOraclesObjects: SuiClientTypes.DynamicFieldEntry[] = [];
 
     let parentId: string;
 
     try {
-      // Try to safely extract the parentId
-      parentId = (existingOraclesResponse as { fields: { id: { id: string } } })
-        .fields.id.id;
+      // Try to safely extract the parentId. The json representation inlines the
+      // Table's UID as a plain id string; fall back to the legacy nested shape.
+      const eo = existingOraclesResponse as {
+        id?: string | { id: string };
+        fields?: { id: { id: string } };
+      };
+      parentId =
+        (typeof eo?.id === 'object' ? eo.id.id : eo?.id) ?? eo?.fields?.id?.id;
+      if (typeof parentId !== 'string') {
+        throw new Error('Could not extract parentId');
+      }
     } catch {
       // Fallback to the queue address if extraction fails
       parentId = this.address;
     }
 
     let existingOraclesDynamicFields =
-      await this.client.client.getDynamicFields({
+      await this.client.client.core.listDynamicFields({
         parentId,
       });
-    existingOraclesObjects.push(...existingOraclesDynamicFields.data);
+    existingOraclesObjects.push(...existingOraclesDynamicFields.dynamicFields);
     while (existingOraclesDynamicFields.hasNextPage) {
-      existingOraclesDynamicFields = await this.client.client.getDynamicFields({
-        parentId: existingOraclesDynamicFields.nextCursor,
-      });
-      existingOraclesObjects.push(...existingOraclesDynamicFields.data);
+      existingOraclesDynamicFields =
+        await this.client.client.core.listDynamicFields({
+          parentId,
+          cursor: existingOraclesDynamicFields.cursor,
+        });
+      existingOraclesObjects.push(...existingOraclesDynamicFields.dynamicFields);
     }
 
     // fetch existing oracles objects
-    const realExistingOraclesContents =
-      await this.client.client.multiGetObjects({
-        ids: existingOraclesObjects.map(o => {
-          return o.objectId;
+    const realExistingOraclesContents = await this.client.client.core
+      .getObjects({
+        objectIds: existingOraclesObjects.map(o => {
+          return o.fieldId;
         }),
-        options: {
-          showContent: true,
-        },
-      });
+        include: { json: true },
+      })
+      .then(r => r.objects);
 
     // parse the existing oracles
     const existingOracles = realExistingOraclesContents.map(o => {
       try {
+        if (o instanceof Error) throw o;
         const fields = getFieldsFromObject(o);
         // First cast to unknown, then to our specific type to avoid direct type conversion errors
         const value = fields.value as unknown;
+        // json inlines the struct without a `fields` wrapper; support both.
         const fieldsObject =
-          value && typeof value === 'object' && 'fields' in value
-            ? (value as { fields: Record<string, MoveValue> }).fields
+          value && typeof value === 'object'
+            ? 'fields' in value
+              ? (value as { fields: Record<string, MoveValue> }).fields
+              : (value as Record<string, MoveValue>)
             : undefined;
 
         return {

@@ -24,11 +24,10 @@
   },
   "dependencies": {
     "@isaacs/ttlcache": "^1.4.1",
-    "@mysten/sui": "^1",
+    "@mysten/sui": "2.20.2",
     "@switchboard-xyz/common": "^4.1.10"
   },
   "devDependencies": {
-    "@types/node": "^20",
     "typescript": "^5.4.5"
   },
   "engines": {

@@ -1,9 +1,12 @@
 // Third-party imports first, sorted alphabetically by package
 // Local imports last
-import type { CommonOptions, SwitchboardClient } from '../index.js';
+import type {
+  CommonOptions,
+  MoveValue,
+  SwitchboardClient,
+} from '../index.js';
 import { getFieldsFromObject, ObjectParsingHelper } from '../index.js';
 
-import type { MoveValue } from '@mysten/sui/client';
 import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import { fromHex, SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 import type { BN } from '@switchboard-xyz/common';
@@ -226,15 +229,12 @@ export class Quote {
    * Get the quote verifier data object
    */
   public async loadData(): Promise<QuoteData> {
-    const quoteData = (await this.client.client
+    const quoteData = (await this.client.client.core
       .getObject({
-        id: this.address,
-        options: {
-          showContent: true,
-          showType: false,
-        },
+        objectId: this.address,
+        include: { json: true },
       })
-      .then(getFieldsFromObject)) as QuoteVerifierMoveFields;
+      .then(r => getFieldsFromObject(r.object))) as QuoteVerifierMoveFields;
 
     // Build the data object
     const data: QuoteData = {
