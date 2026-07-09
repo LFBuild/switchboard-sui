@@ -288,7 +288,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mysten/sui@npm:2.20.2":
+"@mysten/sui@npm:2.20.2, @mysten/sui@npm:^2.20.2":
   version: 2.20.2
   resolution: "@mysten/sui@npm:2.20.2"
   dependencies:
@@ -573,9 +573,11 @@ __metadata:
   resolution: "@switchboard-xyz/sui-sdk@workspace:sui-sdk"
   dependencies:
     "@isaacs/ttlcache": "npm:^1.4.1"
-    "@mysten/sui": "npm:2.20.2"
+    "@mysten/sui": "npm:^2.20.2"
     "@switchboard-xyz/common": "npm:^4.1.10"
     typescript: "npm:^5.4.5"
+  peerDependencies:
+    "@mysten/sui": ^2.20.2
   languageName: unknown
   linkType: soft
 
