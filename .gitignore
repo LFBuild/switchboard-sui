@@ -1,0 +1,12 @@
+node_modules
+
+.DS_Store
+
+# Yarn (Berry) — keep yarn.lock, ignore cache/state
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*

@@ -1,23 +1,33 @@
 {
+  "include": ["./src/**/*"],
+  "exclude": ["tests/**/*", "lib", "node_modules", "scripts"],
   "ts-node": {
     // these options are overrides used only by ts-node
     "compilerOptions": {
       "module": "commonjs"
     }
   },
-  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "esModuleInterop": true,
-    "moduleResolution": "node",
     "module": "es2022",
+    "moduleResolution": "node",
     "target": "es2019",
-    "outDir": "./dist/esm",
+    "outDir": "./dist",
     "rootDir": "./src",
-    "typeRoots": ["./node_modules/@types", "./types"],
-    "skipLibCheck": true,
-    "strictNullChecks": false,
-    "strictPropertyInitialization": false,
+    "declaration": true,
+    "declarationMap": true,
     "sourceMap": true,
-    "inlineSources": true
+    "inlineSources": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "allowJs": true,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictPropertyInitialization": false
   }
 }
