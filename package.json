@@ -21,6 +21,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "yarn clean && tsc",
+    "prepack": "tsc",
     "prepare": "tsc",
     "prepublishOnly": "yarn build"
   },
