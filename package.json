@@ -1,5 +1,5 @@
 {
-  "name": "@switchboard-xyz/sui-sdk-v2",
+  "name": "@fullsailfinance/switchboard-sui-sdk-v2",
   "version": "0.1.9",
   "description": "API wrapper for intergating with the Switchboard program on our Sui implementation",
   "license": "MIT",
