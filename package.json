@@ -1,9 +1,44 @@
 {
-  "name": "switchboard-sui-monorepo",
-  "private": true,
+  "name": "@switchboard-xyz/sui-sdk-v2",
+  "version": "0.1.9",
+  "description": "API wrapper for intergating with the Switchboard program on our Sui implementation",
+  "license": "MIT",
   "packageManager": "yarn@4.6.0",
-  "workspaces": [
-    "sui-sdk",
-    "examples/example_2025"
-  ]
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "yarn clean && tsc",
+    "prepare": "tsc",
+    "prepublishOnly": "yarn build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@isaacs/ttlcache": "^1.4.1",
+    "@switchboard-xyz/common": "^4.1.10"
+  },
+  "peerDependencies": {
+    "@mysten/sui": "^2.20.2"
+  },
+  "devDependencies": {
+    "@mysten/sui": "^2.20.2",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }
