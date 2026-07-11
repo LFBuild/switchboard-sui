@@ -1,25 +1,10 @@
-<div align="center">
-  <a href="#">
-    <img src="https://github.com/switchboard-xyz/sbv2-core/raw/main/website/static/img/icons/switchboard/avatar.png" />
-  </a>
+> **Note — this is a fork.** This repository is a fork of [switchboard-xyz/sui](https://github.com/switchboard-xyz/sui), maintained by FullSail for the migration of the TypeScript SDK from `@mysten/sui` v1 to v2. It is not an official Switchboard release. The upstream project is licensed under Apache 2.0; see [`LICENSE`](./LICENSE).
 
-  <h1>Switchboard On-Demand on Sui</h1>
+# Switchboard On-Demand on Sui
 
-  <p>Switchboard is a multi-chain, permissionless oracle protocol allowing developers to fully control how data is relayed on-chain to their smart contracts.</p>
+Switchboard is a multi-chain, permissionless oracle protocol allowing developers to fully control how data is relayed on-chain to their smart contracts.
 
-  <div>
-    <a href="https://discord.gg/TJAv6ZYvPC">
-      <img alt="Discord" src="https://img.shields.io/discord/841525135311634443?color=blueviolet&logo=discord&logoColor=white" />
-    </a>
-    <a href="https://twitter.com/switchboardxyz">
-      <img alt="Twitter" src="https://img.shields.io/twitter/follow/switchboardxyz?label=Follow+Switchboard" />
-    </a>
-  </div>
-
-  <h4>
-    <strong>Documentation: </strong><a href="https://docs.switchboard.xyz">docs.switchboard.xyz</a>
-  </h4>
-</div>
+**Original documentation:** [docs.switchboard.xyz](https://docs.switchboard.xyz)
 
 ## Active Deployments
 
@@ -28,26 +13,41 @@ The Switchboard On-Demand service is currently deployed on the following network
 - Mainnet: [0xe6717fb7c9d44706bf8ce8a651e25c0a7902d32cb0ff40c0976251ce8ac25655](https://suiscan.xyz/mainnet/object/0xe6717fb7c9d44706bf8ce8a651e25c0a7902d32cb0ff40c0976251ce8ac25655)
 - Testnet: [0x578b91ec9dcc505439b2f0ec761c23ad2c533a1c23b0467f6c4ae3d9686709f6](https://suiscan.xyz/testnet/object/0x578b91ec9dcc505439b2f0ec761c23ad2c533a1c23b0467f6c4ae3d9686709f6)
 
+## Prerequisites
+
+- **Node.js ≥ 22**
+- **`@mysten/sui` v2** — a peer dependency.
+
 ## Typescript-SDK Installation
 
-To use Switchboard On-Demand, add the following dependencies to your project:
+This fork is not published to a registry — it is consumed directly as a git dependency from this public repository. Add it to your project's `package.json`:
+
+```jsonc
+{
+  "dependencies": {
+    "@fullsailfinance/switchboard-sui-sdk-v2": "git+https://github.com/LFBuild/switchboard-sui.git#mysten-sui-v2",
+  },
+}
+```
+
+Or via the CLI:
+
+### Yarn
+
+```bash
+yarn add @fullsailfinance/switchboard-sui-sdk-v2@git+https://github.com/LFBuild/switchboard-sui.git#mysten-sui-v2
+```
 
 ### NPM
 
 ```bash
-npm install @switchboard-xyz/sui-sdk --save
-```
-
-### Bun
-
-```bash
-bun add @switchboard-xyz/sui-sdk
+npm install "git+https://github.com/LFBuild/switchboard-sui.git#mysten-sui-v2"
 ```
 
 ### PNPM
 
 ```bash
-pnpm add @switchboard-xyz/sui-sdk
+pnpm add "git+https://github.com/LFBuild/switchboard-sui.git#mysten-sui-v2"
 ```
 
 ## Creating an Aggregator and Sending Transactions
@@ -63,7 +63,7 @@ import {
   Aggregator,
   ON_DEMAND_MAINNET_QUEUE,
   ON_DEMAND_TESTNET_QUEUE,
-} from "@switchboard-xyz/sui-sdk";
+} from "@fullsailfinance/switchboard-sui-sdk-v2";
 
 // for initial testing and development, you can use the public
 // https://crossbar.switchboard.xyz instance of crossbar
@@ -235,14 +235,15 @@ Quotes work in two main steps:
 2. **Fetch Quotes**: Use the SDK to fetch oracle consensus data and create quotes that can be used in subsequent transactions
 
 Alternatively you can:
-1. **Manually verify and sequence updates**: You can manually check 
+
+1. **Manually verify and sequence updates**: You can manually check
 
 ### Step 1: Creating a Quote Verifier
 
 First, create a quote verifier in your Move program:
 
 ```typescript
-import { Quote, SwitchboardClient } from "@switchboard-xyz/sui-sdk";
+import { Quote, SwitchboardClient } from "@fullsailfinance/switchboard-sui-sdk-v2";
 import { Transaction } from "@mysten/sui/transactions";
 
 const client = new SwitchboardClient(suiClient);
@@ -265,20 +266,20 @@ const result = await suiClient.signAndExecuteTransaction({
 Once you have a verifier, you can fetch quotes using the SDK:
 
 ```typescript
-import { fetchQuoteUpdate } from "@switchboard-xyz/sui-sdk";
+import { fetchQuoteUpdate } from "@fullsailfinance/switchboard-sui-sdk-v2";
 
 const tx = new Transaction();
 
 // Fetch quote updates for specific feed hashes
 const quotes = await fetchQuoteUpdate(
   client,
-  ['0x7418dc6408f5e0eb4724dabd81922ee7b0814a43abc2b30ea7a08222cd1e23ee'], // Feed ID's 
-  tx
+  ["0x7418dc6408f5e0eb4724dabd81922ee7b0814a43abc2b30ea7a08222cd1e23ee"], // Feed ID's
+  tx,
 );
 
 // The quotes object can now be used in subsequent move calls
 tx.moveCall({
-  target: 'YOUR_PACKAGE::your_module::use_quotes',
+  target: "YOUR_PACKAGE::your_module::use_quotes",
   arguments: [
     quotes, // The quotes object from fetchQuoteUpdate
     // ... other arguments
@@ -310,7 +311,7 @@ public struct State has key {
 // Initialize your program with a quote verifier
 public fun init_with_verifier(ctx: &mut TxContext, queue: ID) {
     let verifier = switchboard::quote::new_verifier(ctx, queue);
-    
+
     transfer::share_object(State {
         id: object::new(ctx),
         quote_verifier: verifier,
@@ -325,7 +326,7 @@ public entry fun consume_quotes(
 ) {
     // Verify and extract quote data
     let quote_data = program.quote_verifier.verify_quotes(&quotes);
-    
+
     // Access individual quotes by feed hash
     let feed_hash = b"7418dc6408f5e0eb4724dabd81922ee7b0814a43abc2b30ea7a08222cd1e23ee";
     if (quote_data.contains(feed_hash)) {
@@ -333,15 +334,14 @@ public entry fun consume_quotes(
         let result: Decimal = quote.result();
         let value_u128 = result.value();
         let timestamp: u64 = quote.timestamp_ms();
-        
+
         // Use the quote data in your program logic...
     };
 }
 ```
 
+# Surge
 
-# Surge 
-
-*coming soon*
+_coming soon_
 
 **DISCLAIMER: ORACLE CODE AND CORE LOGIC ARE AUDITED - THE AUDIT FOR THIS ON-CHAIN ADAPTER IS PENDING**
