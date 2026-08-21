@@ -5,7 +5,13 @@ import type {
   MoveValue,
   SwitchboardClient,
 } from '../index.js';
-import { ObjectParsingHelper, Queue, suiQueueCache } from '../index.js';
+import {
+  ObjectParsingHelper,
+  ON_DEMAND_MAINNET_OBJECT_PACKAGE_ID,
+  ON_DEMAND_TESTNET_OBJECT_PACKAGE_ID,
+  Queue,
+  suiQueueCache,
+} from '../index.js';
 
 import type { SuiGraphQLClient } from '@mysten/sui/graphql';
 import type { Transaction } from '@mysten/sui/transactions';
@@ -473,9 +479,19 @@ export class Aggregator {
    * Load all feeds
    */
   public static async loadAllFeeds(
+    client: SwitchboardClient,
     graphqlClient: SuiGraphQLClient,
-    switchboardAddress: string
+    typePackageId?: string
   ): Promise<AggregatorData[]> {
+    // Object type tags keep the package the type was first published under, so
+    // the upgraded package id carried by the on-chain state never matches here.
+    const { mainnet } = await client.fetchState();
+    const packageId =
+      typePackageId ??
+      (mainnet
+        ? ON_DEMAND_MAINNET_OBJECT_PACKAGE_ID
+        : ON_DEMAND_TESTNET_OBJECT_PACKAGE_ID);
+
     // Query to fetch Aggregator objects with pagination supported.
     const query = `
       query($cursor: String) {
@@ -483,7 +499,7 @@ export class Aggregator {
           first: 50,
           after: $cursor,
           filter: {
-            type: "${switchboardAddress}::aggregator::Aggregator"
+            type: "${packageId}::aggregator::Aggregator"
           }
         ) {
           nodes {
