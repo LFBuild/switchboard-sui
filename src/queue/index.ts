@@ -305,10 +305,17 @@ export class Queue {
       feeTypes: ObjectParsingHelper.asArray(rpcResponseData.fee_types)
         .map(ft => {
           try {
-            // Use a safer approach to access nested fields
-            if (typeof ft === 'object' && ft !== null && 'fields' in ft) {
-              const fields = (ft as { fields: Record<string, MoveValue> })
-                .fields;
+            // json inlines the TypeName as a plain string; support the legacy
+            // `fields` wrapper and the unwrapped struct too.
+            if (typeof ft === 'string') {
+              return ft;
+            }
+            if (typeof ft === 'object' && ft !== null) {
+              const fields = (
+                'fields' in ft
+                  ? (ft as { fields: Record<string, MoveValue> }).fields
+                  : ft
+              ) as Record<string, MoveValue>;
               return fields.name
                 ? ObjectParsingHelper.asString(fields.name)
                 : '';

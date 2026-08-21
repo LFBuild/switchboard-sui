@@ -4,7 +4,12 @@ import type {
   MoveValue,
   SwitchboardClient,
 } from '../index.js';
-import { getFieldsFromObject, ObjectParsingHelper } from '../index.js';
+import {
+  getFieldsFromObject,
+  ObjectParsingHelper,
+  ON_DEMAND_MAINNET_OBJECT_PACKAGE_ID,
+  ON_DEMAND_TESTNET_OBJECT_PACKAGE_ID,
+} from '../index.js';
 
 import type { SuiGraphQLClient } from '@mysten/sui/graphql';
 import type { Transaction } from '@mysten/sui/transactions';
@@ -104,14 +109,26 @@ export class Oracle {
   }
 
   public static async loadAllOracles(
+    client: SwitchboardClient,
     graphqlClient: SuiGraphQLClient,
-    switchboardAddress: string
+    typePackageId?: string
   ): Promise<OracleData[]> {
+    // Object type tags keep the package the type was first published under, so
+    // the upgraded package id carried by the on-chain state never matches here.
+    const { mainnet } = await client.fetchState();
+    const packageId =
+      typePackageId ??
+      (mainnet
+        ? ON_DEMAND_MAINNET_OBJECT_PACKAGE_ID
+        : ON_DEMAND_TESTNET_OBJECT_PACKAGE_ID);
+
     const fetchOraclesQuery = `
-      query {
+      query($cursor: String) {
         objects(
+          first: 50,
+          after: $cursor,
           filter: {
-            type: "${switchboardAddress}::oracle::Oracle"
+            type: "${packageId}::oracle::Oracle"
           }
         ) {
           nodes {
@@ -123,17 +140,36 @@ export class Oracle {
               }
             }
           }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
         }
       }
     `;
-    const result = await graphqlClient.query<{
-      objects: { nodes: OracleGraphQLNode[] };
-    }>({
-      query: fetchOraclesQuery,
-      variables: {},
-    });
 
-    const oracleData: OracleData[] = (result.data?.objects?.nodes ?? []).map(
+    const nodes: OracleGraphQLNode[] = [];
+    let cursor: string | null = null;
+    let hasNextPage = true;
+
+    while (hasNextPage) {
+      const result = await graphqlClient.query<{
+        objects: {
+          nodes: OracleGraphQLNode[];
+          pageInfo: { hasNextPage: boolean; endCursor: string | null };
+        };
+      }>({
+        query: fetchOraclesQuery,
+        variables: { cursor },
+      });
+
+      nodes.push(...(result.data?.objects?.nodes ?? []));
+      hasNextPage = result.data?.objects?.pageInfo?.hasNextPage ?? false;
+      cursor = result.data?.objects?.pageInfo?.endCursor ?? null;
+      if (!cursor) break;
+    }
+
+    const oracleData: OracleData[] = nodes.map(
       result => {
         const moveObject = result.asMoveObject.contents
           .json as MoveObjectFields;

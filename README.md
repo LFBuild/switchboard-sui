@@ -10,8 +10,15 @@ Switchboard is a multi-chain, permissionless oracle protocol allowing developers
 
 The Switchboard On-Demand service is currently deployed on the following networks:
 
-- Mainnet: [0xe6717fb7c9d44706bf8ce8a651e25c0a7902d32cb0ff40c0976251ce8ac25655](https://suiscan.xyz/mainnet/object/0xe6717fb7c9d44706bf8ce8a651e25c0a7902d32cb0ff40c0976251ce8ac25655)
-- Testnet: [0x578b91ec9dcc505439b2f0ec761c23ad2c533a1c23b0467f6c4ae3d9686709f6](https://suiscan.xyz/testnet/object/0x578b91ec9dcc505439b2f0ec761c23ad2c533a1c23b0467f6c4ae3d9686709f6)
+Sui packages get a new address on every upgrade, so each network has two that matter:
+
+| | Mainnet | Testnet |
+| --- | --- | --- |
+| **Original package** — what object type tags reference, and what the SDK exports as `ON_DEMAND_*_OBJECT_PACKAGE_ID`. Never changes. | [0xc3c7e6eb…f938ea3](https://suiscan.xyz/mainnet/object/0xc3c7e6eb7202e9fb0389a2f7542b91cc40e4f7a33c02554fec11c4c92f938ea3) | [0xdd96e1c8…cf43ce2](https://suiscan.xyz/testnet/object/0xdd96e1c8d6d61c4642b9b73eefb1021cc5f93f489b794bca11c81d55fcf43ce2) |
+| **Latest package** — what Move calls target. Read from the on-chain state object, not hardcoded. | v4 [0xa8108657…c44e210](https://suiscan.xyz/mainnet/object/0xa81086572822d67a1559942f23481de9a60c7709c08defafbb1ca8dffc44e210) | v8 [0x0ea79f9c…3c4ac1e](https://suiscan.xyz/testnet/object/0x0ea79f9c3fa1e3f701885a00bf26f92a297223165f26529767d2f7d1e3c4ac1e) |
+| **State object** — the SDK's entry point (`ON_DEMAND_*_STATE_OBJECT_ID`). | [0x93d2a822…2664a791](https://suiscan.xyz/mainnet/object/0x93d2a8222bb2006d16285ac858ec2ae5f644851917504b94debde8032664a791) | [0x2086fdde…b4339ad6](https://suiscan.xyz/testnet/object/0x2086fdde07a8f4726a3fc72d6ef1021343a781d42de6541ca412cf50b4339ad6) |
+
+`SwitchboardClient` resolves the latest package itself, so the only address you normally need is the state object, which the SDK already knows.
 
 ## Prerequisites
 
