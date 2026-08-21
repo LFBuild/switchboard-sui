@@ -1,0 +1,78 @@
+name: Security alerts
+
+on:
+  schedule:
+    # Daily at 07:00 UTC — only what appeared in the last 24 hours.
+    - cron: "0 7 * * *"
+    # Mondays at 08:00 UTC — the full list of open alerts.
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: "Report every open alert, not just the new ones"
+        type: boolean
+        default: false
+
+permissions:
+  # Only for checkout. Dependabot alerts are read with AUDIT_ALERTS_GH_TOKEN —
+  # the built-in token has no access to them and answers 403.
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch alerts
+        env:
+          GH_TOKEN: ${{ secrets.AUDIT_ALERTS_GH_TOKEN || github.token }}
+        run: |
+          # --slurp collects each page as one element, so the result is an array
+          # of pages. `add` concatenates them into a flat array of alerts.
+          gh api "/repos/${{ github.repository }}/dependabot/alerts?state=open&per_page=100" \
+            --paginate --slurp | jq 'add // []' > alerts.json
+          echo "alerts fetched: $(jq length alerts.json)"
+
+      - name: Build message
+        id: report
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          # The Monday cron and a manual run with the checkbox send the full
+          # list; the plain daily run sends only what was created in 24 hours.
+          if [ "${{ github.event.schedule }}" = "0 8 * * 1" ] || [ "${{ inputs.digest }}" = "true" ]; then
+            MODE="--digest"
+          else
+            MODE="--since $(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+          fi
+          echo "mode: $MODE"
+
+          node .github/scripts/alerts-report.mjs $MODE < alerts.json > message.txt || true
+
+          if [ -s message.txt ]; then
+            echo "has_message=true" >> "$GITHUB_OUTPUT"
+            echo "--- message:"
+            cat message.txt
+          else
+            echo "has_message=false" >> "$GITHUB_OUTPUT"
+            echo "no new vulnerabilities - nothing to send"
+          fi
+
+      - name: Send to Telegram
+        if: steps.report.outputs.has_message == 'true'
+        env:
+          TG_TOKEN: ${{ secrets.AUDIT_ALERTS_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.AUDIT_ALERTS_CHAT_ID }}
+        run: |
+          RESPONSE=$(curl -sS "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TG_CHAT_ID}" \
+            --data-urlencode "text@message.txt" \
+            --data "disable_web_page_preview=true")
+
+          echo "$RESPONSE" | jq -e '.ok' > /dev/null || {
+            echo "Telegram rejected the message:"
+            echo "$RESPONSE" | jq -r '"\(.error_code): \(.description)"'
+            exit 1
+          }
+          echo "sent"
